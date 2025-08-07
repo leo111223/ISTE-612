@@ -6,7 +6,7 @@ class SlangBridgeBot:
     def __init__(self):
         #print("Initializing SlangBridge ML Enhanced System...")
         self.slang_dict = MLEnhancedSlangDictionary()
-        print("\nSlangBridge is ready!")
+        print("\nSlangBridge is ready!\n")
     
     def detect_input_type(self, text):
         #Detect if input is slang or standard using ML classifiers

@@ -9,31 +9,36 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder
 import numpy as np
 import re
-from transformers import pipeline, AutoTokenizer, AutoModel
-import torch
+
+# Try to import transformers for BERT, but make it optional
+try:
+    from transformers import pipeline
+    TRANSFORMERS_AVAILABLE = True
+except ImportError:
+    TRANSFORMERS_AVAILABLE = False
+    print("Transformers not available. BERT features will be disabled.")
 
 class MLEnhancedSlangDictionary:
     def __init__(self, data_dir='urbandict'):
-        #print("🔧 Loading datasets...")
         
         # Load all datasets
         try:
             self.slang_to_standard_df = pd.read_csv(os.path.join(data_dir, 'slangbridge_complete_dataset.csv'))
-            #print(f"Loaded main dataset: {len(self.slang_to_standard_df)} entries")
+            
         except FileNotFoundError:
             print("Main dataset not found, continuing with translation files only")
             self.slang_to_standard_df = pd.DataFrame()
         
         try:
             self.translation_df1 = pd.read_csv(os.path.join(data_dir, 'slang_translation2.csv'))
-            #print(f"Loaded translation file 1: {len(self.translation_df1)} entries")
+           
         except FileNotFoundError:
             print("slang_translation2.csv not found")
             self.translation_df1 = pd.DataFrame()
         
         try:
             self.translation_df2 = pd.read_csv(os.path.join(data_dir, 'slang_corpus_chunk_1_to_4.csv'))
-            #print(f"Loaded translation file 2: {len(self.translation_df2)} entries")
+
         except FileNotFoundError:
             print("slang_corpus_chunk_1_to_4.csv not found")
             self.translation_df2 = pd.DataFrame()
@@ -42,11 +47,11 @@ class MLEnhancedSlangDictionary:
         self._prepare_datasets()
         
         # Initialize ML models
-        #print("Initializing ML models...")
+       
         self._initialize_ml_models()
         
         # Initialize BERT for contextual detection
-        #print("Loading BERT model...")
+ 
         self._initialize_bert()
         
         # Initialize TF-IDF vectorizer for similarity matching
@@ -54,8 +59,8 @@ class MLEnhancedSlangDictionary:
         self._build_similarity_index()
     
     def _prepare_datasets(self):
-        """Prepare and combine datasets for bidirectional translation"""
-        #print("Preparing bidirectional translation data...")
+        #Prepare and combine datasets for bidirectional translation
+       
         
         # Combine translation datasets
         translation_dfs = []
@@ -109,11 +114,9 @@ class MLEnhancedSlangDictionary:
         if not self.slang_to_standard_df.empty and 'slang_term' in self.slang_to_standard_df.columns:
             self.slang_to_standard_df['slang_term'] = self.slang_to_standard_df['slang_term'].astype(str).str.lower().str.strip()
         
-        #print(f" Prepared {len(self.slang_to_standard)} slang-to-standard translations")
-        #print(f" Prepared {len(self.standard_to_slang)} standard-to-slang translations")
-    
+        
     def _initialize_ml_models(self):
-        """Initialize text classification models """
+        #Initialize text classification models 
         try:
             # Create training data for text classification
             training_texts = []
@@ -153,8 +156,8 @@ class MLEnhancedSlangDictionary:
                 nb_accuracy = self.nb_classifier.score(X_test, y_test)
                 lr_accuracy = self.lr_classifier.score(X_test, y_test)
                 
-                print(f"Naive Bayes classifier trained (Accuracy: {nb_accuracy:.3f})\n")
-                print(f"Logistic Regression classifier trained (Accuracy: {lr_accuracy:.3f})\n")
+                print(f" \nNaive Bayes classifier trained (Accuracy: {nb_accuracy:.3f})")
+                print(f" \nLogistic Regression classifier trained (Accuracy: {lr_accuracy:.3f})")
                 
                 self.classifiers_trained = True
             else:
@@ -167,20 +170,26 @@ class MLEnhancedSlangDictionary:
     
     def _initialize_bert(self):
         #Initialize BERT model for contextual detection
+        if not TRANSFORMERS_AVAILABLE:
+            print(" Transformers not available, skipping BERT initialization")
+            self.bert_available = False
+            return
+            
         try:
             # Use a lightweight BERT model for sentiment/context analysis
             self.bert_sentiment = pipeline("sentiment-analysis", 
                                          model="cardiffnlp/twitter-roberta-base-sentiment-latest",
                                          return_all_scores=True)
-            #print("BERT model loaded for contextual analysis")
+            
             self.bert_available = True
         except Exception as e:
-            print(f"Could not load BERT model: {e}")
+            print(f" Could not load BERT model: {e}")
+            
             self.bert_available = False
     
     def _build_similarity_index(self):
-        #Build TF-IDF index for cosine similarity matching
-    
+        """Build TF-IDF index for cosine similarity matching"""
+       
         try:
             # Combine all terms and definitions for similarity matching
             all_terms = []
@@ -203,7 +212,7 @@ class MLEnhancedSlangDictionary:
                 
                 if len(self.corpus) > 0:
                     self.tfidf_matrix = self.vectorizer.fit_transform(self.corpus)
-                    #print(f"Built TF-IDF similarity index with {len(self.corpus)} entries")
+                    
                 else:
                     self.tfidf_matrix = None
                     print(" No valid data for similarity index")
@@ -337,7 +346,7 @@ class MLEnhancedSlangDictionary:
             return contexts if contexts else ['neutral']
             
         except Exception as e:
-            print(f" Error in BERT context detection: {e}")
+            print(f"Error in BERT context detection: {e}")
             return self._detect_context_heuristic(text)
     
     def _detect_context_heuristic(self, text):
@@ -446,6 +455,64 @@ class MLEnhancedSlangDictionary:
         
         return None
     
+    def translate_sentence(self, sentence, direction="auto", context=""):
+        """Translate entire sentences with multiple slang terms"""
+        if not sentence:
+            return {'original': '', 'translated': '', 'changes': [], 'context': ['neutral']}
+            
+        words = sentence.split()
+        translated_words = []
+        changes_made = []
+        
+        for word in words:
+            # Clean word (remove punctuation for lookup, but keep for output)
+            clean_word = re.sub(r'[^\w\s]', '', word.lower())
+            
+            if direction in ["auto", "slang_to_standard"]:
+                result = self.translate_slang_to_standard(clean_word, context)
+                if result:
+                    # Preserve original capitalization and punctuation
+                    original_punct = re.findall(r'[^\w\s]', word)
+                    translated_word = result['translation']
+                    if word and word[0].isupper():
+                        translated_word = translated_word.capitalize()
+                    translated_word += ''.join(original_punct)
+                    translated_words.append(translated_word)
+                    changes_made.append({
+                        'original': word,
+                        'translated': translated_word,
+                        'method': result['method'],
+                        'confidence': result['confidence']
+                    })
+                else:
+                    translated_words.append(word)
+            
+            elif direction == "standard_to_slang":
+                result = self.translate_standard_to_slang(clean_word, context)
+                if result:
+                    # Preserve original capitalization and punctuation
+                    original_punct = re.findall(r'[^\w\s]', word)
+                    translated_word = result['translation']
+                    if word and word[0].isupper():
+                        translated_word = translated_word.capitalize()
+                    translated_word += ''.join(original_punct)
+                    translated_words.append(translated_word)
+                    changes_made.append({
+                        'original': word,
+                        'translated': translated_word,
+                        'method': result['method'],
+                        'confidence': result['confidence']
+                    })
+                else:
+                    translated_words.append(word)
+        
+        return {
+            'original': sentence,
+            'translated': ' '.join(translated_words),
+            'changes': changes_made,
+            'context': self._detect_context_bert(context) if context else ['neutral']
+        }
+    
     def analyze_text_with_ml(self, text):
         """Comprehensive ML analysis of input text"""
         # Text type classification
@@ -468,6 +535,154 @@ class MLEnhancedSlangDictionary:
                 'Logistic Regression Classification', 
                 'BERT Contextual Analysis' if self.bert_available else 'Heuristic Context Analysis'
             ]
+        }
+    
+    def evaluate_translation_accuracy(self, test_samples=50, direction="both"):
+        """Test translation accuracy on known pairs"""
+        results = {}
+        
+        # Test slang-to-standard accuracy
+        if direction in ["slang_to_standard", "both"]:
+            slang_correct = 0
+            slang_total = min(test_samples, len(self.slang_to_standard))
+            
+            if slang_total > 0:
+                test_pairs = list(self.slang_to_standard.items())[:slang_total]
+                for slang, expected_standard in test_pairs:
+                    result = self.translate_slang_to_standard(slang)
+                    if result:
+                        # Check if translation matches (case-insensitive, flexible matching)
+                        translated = result['translation'].lower().strip()
+                        expected = expected_standard.lower().strip()
+                        if translated == expected or translated in expected or expected in translated:
+                            slang_correct += 1
+                
+                slang_accuracy = slang_correct / slang_total
+                results['slang_to_standard'] = {
+                    'accuracy': slang_accuracy,
+                    'correct': slang_correct,
+                    'total': slang_total
+                }
+        
+        # Test standard-to-slang accuracy
+        if direction in ["standard_to_slang", "both"]:
+            standard_correct = 0
+            standard_total = min(test_samples, len(self.standard_to_slang))
+            
+            if standard_total > 0:
+                test_pairs = list(self.standard_to_slang.items())[:standard_total]
+                for standard, expected_slang in test_pairs:
+                    result = self.translate_standard_to_slang(standard)
+                    if result:
+                        # Check if translation matches (case-insensitive, flexible matching)
+                        translated = result['translation'].lower().strip()
+                        expected = expected_slang.lower().strip()
+                        if translated == expected or translated in expected or expected in translated:
+                            standard_correct += 1
+                
+                standard_accuracy = standard_correct / standard_total
+                results['standard_to_slang'] = {
+                    'accuracy': standard_accuracy,
+                    'correct': standard_correct,
+                    'total': standard_total
+                }
+        
+        return results
+    
+    def evaluate_classification_performance(self, test_samples=100):
+        """Evaluate ML classifier performance"""
+        if not self.classifiers_trained:
+            return {"error": "Classifiers not trained"}
+        
+        try:
+            # Create test data
+            test_texts = []
+            true_labels = []
+            
+            # Add slang samples
+            slang_samples = min(test_samples // 2, len(self.slang_to_standard))
+            for slang_term in list(self.slang_to_standard.keys())[:slang_samples]:
+                test_texts.append(slang_term)
+                true_labels.append('slang')
+            
+            # Add standard samples  
+            standard_samples = min(test_samples // 2, len(self.standard_to_slang))
+            for standard_term in list(self.standard_to_slang.keys())[:standard_samples]:
+                test_texts.append(standard_term)
+                true_labels.append('standard')
+            
+            if len(test_texts) == 0:
+                return {"error": "No test data available"}
+            
+            # Get predictions
+            correct_nb = 0
+            correct_lr = 0
+            
+            for text, true_label in zip(test_texts, true_labels):
+                # Get ML classification
+                classification = self._classify_text_type(text)
+                predicted_type = classification['type']
+                
+                # Check accuracy
+                if predicted_type == true_label:
+                    if 'nb_prediction' in classification:
+                        if classification['nb_prediction'] == true_label:
+                            correct_nb += 1
+                        if classification['lr_prediction'] == true_label:
+                            correct_lr += 1
+                    else:
+                        correct_nb += 1
+                        correct_lr += 1
+            
+            total = len(test_texts)
+            return {
+                'naive_bayes_accuracy': correct_nb / total if total > 0 else 0,
+                'logistic_regression_accuracy': correct_lr / total if total > 0 else 0,
+                'total_samples': total
+            }
+            
+        except Exception as e:
+            return {"error": f"Classification evaluation failed: {e}"}
+    
+    def run_comprehensive_evaluation(self, samples=50):
+        """Run complete evaluation suite"""
+        print("🔍 Running Comprehensive Evaluation...\n")
+        
+        # Translation accuracy
+        translation_results = self.evaluate_translation_accuracy(samples)
+        
+        print("📊 **TRANSLATION ACCURACY:**")
+        if 'slang_to_standard' in translation_results:
+            s2s = translation_results['slang_to_standard']
+            print(f"   Slang → Standard: {s2s['accuracy']:.1%} ({s2s['correct']}/{s2s['total']})")
+        
+        if 'standard_to_slang' in translation_results:
+            std2s = translation_results['standard_to_slang']
+            print(f"   Standard → Slang: {std2s['accuracy']:.1%} ({std2s['correct']}/{std2s['total']})")
+        
+        # Classification performance
+        classification_results = self.evaluate_classification_performance(samples * 2)
+        
+        print("\n🤖 **ML CLASSIFICATION ACCURACY:**")
+        if 'error' not in classification_results:
+            print(f"   Naive Bayes: {classification_results['naive_bayes_accuracy']:.1%}")
+            print(f"   Logistic Regression: {classification_results['logistic_regression_accuracy']:.1%}")
+            print(f"   Test Samples: {classification_results['total_samples']}")
+        else:
+            print(f"   Error: {classification_results['error']}")
+        
+        # Overall system stats
+        stats = self.get_ml_stats()
+        print(f"\n📈 **SYSTEM PERFORMANCE:**")
+        print(f"   Dataset Coverage: {stats['slang_to_standard_count'] + stats['standard_to_slang_count']} translations")
+        print(f"   TF-IDF Index Size: {stats['tfidf_corpus_size']} entries")
+        print(f"   BERT Available: {'✅' if stats['bert_available'] else '❌'}")
+        print(f"   Classifiers Trained: {'✅' if stats['classifiers_trained'] else '❌'}")
+        
+        return {
+            'translation_accuracy': translation_results,
+            'classification_accuracy': classification_results,
+            'system_stats': stats
         }
     
     def get_ml_stats(self):
