@@ -159,22 +159,22 @@ class MLEnhancedSlangDictionary:
                 nb_accuracy = self.nb_classifier.score(X_test, y_test)
                 lr_accuracy = self.lr_classifier.score(X_test, y_test)
                 
-                print(f"✅ Naive Bayes classifier trained (Accuracy: {nb_accuracy:.3f})")
-                print(f"✅ Logistic Regression classifier trained (Accuracy: {lr_accuracy:.3f})")
+                print(f" Naive Bayes classifier trained (Accuracy: {nb_accuracy:.3f})")
+                print(f" Logistic Regression classifier trained (Accuracy: {lr_accuracy:.3f})")
                 
                 self.classifiers_trained = True
             else:
-                print("⚠️ Not enough data to train classifiers")
+                print(" Not enough data to train classifiers")
                 self.classifiers_trained = False
                 
         except Exception as e:
-            print(f"⚠️ Error training classifiers: {e}")
+            print(f" Error training classifiers: {e}")
             self.classifiers_trained = False
     
     def _initialize_bert(self):
         """Initialize BERT model for contextual detection"""
         if not TRANSFORMERS_AVAILABLE:
-            print("⚠️ Transformers not available, skipping BERT initialization")
+            print(" Transformers not available, skipping BERT initialization")
             self.bert_available = False
             return
             
@@ -183,11 +183,11 @@ class MLEnhancedSlangDictionary:
             self.bert_sentiment = pipeline("sentiment-analysis", 
                                          model="cardiffnlp/twitter-roberta-base-sentiment-latest",
                                          return_all_scores=True)
-            print("✅ BERT model loaded for contextual analysis")
+            print("BERT model loaded for contextual analysis")
             self.bert_available = True
         except Exception as e:
-            print(f"⚠️ Could not load BERT model: {e}")
-            print("💡 Consider installing transformers: pip install transformers torch")
+            print(f" Could not load BERT model: {e}")
+            print(" Consider installing transformers: pip install transformers torch")
             self.bert_available = False
     
     def _build_similarity_index(self):
