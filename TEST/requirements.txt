@@ -1,0 +1,15 @@
+# SlangBridge ML Enhanced Requirements
+pandas>=1.3.0
+scikit-learn>=1.0.0
+numpy>=1.21.0
+python-dotenv>=0.19.0
+llama-api-client>=0.1.0
+requests>=2.25.0
+
+# For BERT contextual analysis (optional but recommended)
+transformers>=4.21.0
+torch>=1.12.0
+
+# For web interface
+streamlit>=1.28.0
+plotly>=5.0.0
