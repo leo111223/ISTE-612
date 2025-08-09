@@ -646,12 +646,12 @@ class MLEnhancedSlangDictionary:
     
     def run_comprehensive_evaluation(self, samples=50):
         """Run complete evaluation suite"""
-        print("🔍 Running Comprehensive Evaluation...\n")
+        print("Running Comprehensive Evaluation...\n")
         
         # Translation accuracy
         translation_results = self.evaluate_translation_accuracy(samples)
         
-        print("📊 **TRANSLATION ACCURACY:**")
+        print("--TRANSLATION ACCURACY:")
         if 'slang_to_standard' in translation_results:
             s2s = translation_results['slang_to_standard']
             print(f"   Slang → Standard: {s2s['accuracy']:.1%} ({s2s['correct']}/{s2s['total']})")
@@ -663,7 +663,7 @@ class MLEnhancedSlangDictionary:
         # Classification performance
         classification_results = self.evaluate_classification_performance(samples * 2)
         
-        print("\n🤖 **ML CLASSIFICATION ACCURACY:**")
+        print("\--*ML CLASSIFICATION ACCURACY:")
         if 'error' not in classification_results:
             print(f"   Naive Bayes: {classification_results['naive_bayes_accuracy']:.1%}")
             print(f"   Logistic Regression: {classification_results['logistic_regression_accuracy']:.1%}")
@@ -673,11 +673,11 @@ class MLEnhancedSlangDictionary:
         
         # Overall system stats
         stats = self.get_ml_stats()
-        print(f"\n📈 **SYSTEM PERFORMANCE:**")
+        print(f"\n--SYSTEM PERFORMANCE:**")
         print(f"   Dataset Coverage: {stats['slang_to_standard_count'] + stats['standard_to_slang_count']} translations")
         print(f"   TF-IDF Index Size: {stats['tfidf_corpus_size']} entries")
-        print(f"   BERT Available: {'✅' if stats['bert_available'] else '❌'}")
-        print(f"   Classifiers Trained: {'✅' if stats['classifiers_trained'] else '❌'}")
+        print(f"   BERT Available: {'' if stats['bert_available'] else ''}")
+        print(f"   Classifiers Trained: {'' if stats['classifiers_trained'] else ''}")
         
         return {
             'translation_accuracy': translation_results,
